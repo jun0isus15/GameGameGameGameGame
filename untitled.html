@@ -519,15 +519,8 @@
                 // 맵 경계 충돌 체크 (모든 개체 사망 처리)
                 const distFromCenter = Math.sqrt(this.x * this.x + this.y * this.y);
                 if (distFromCenter > WORLD_RADIUS - this.getRadius()) {
-                    if (this.isPlayer) {
-                        // 무적 처리: 플레이어는 죽지 않고 맵 경계에서 튕겨나가지 않게 위치를 고정합니다.
-                        const angleToCenter = Math.atan2(this.y, this.x);
-                        this.x = Math.cos(angleToCenter) * (WORLD_RADIUS - this.getRadius());
-                        this.y = Math.sin(angleToCenter) * (WORLD_RADIUS - this.getRadius());
-                    } else {
-                        die(this);
-                        return; // 사망 시 이동 중지
-                    }
+                    die(this);
+                    return; // 사망 시 이동 중지
                 }
 
                 this.history.unshift({ x: this.x, y: this.y });
@@ -705,12 +698,9 @@
                         if (!pos) continue;
 
                         if (getDistance(headSnake.x, headSnake.y, pos.x, pos.y) < (headRad + bodyRad) * 0.7) { 
-                            if (!headSnake.isPlayer) {
-                                // 무적 처리: 플레이어는 다른 지렁이 몸통에 부딪혀도 죽지 않음
-                                // 적을 죽였을 때 해당 지렁이의 모든 점수를 킬러(bodySnake)가 즉시 흡수
-                                bodySnake.score += headSnake.score;
-                                die(headSnake);
-                            }
+                            // 충돌한 지렁이의 점수를 상대 지렁이(bodySnake)가 흡수하고 사망 처리
+                            bodySnake.score += headSnake.score;
+                            die(headSnake);
                             break;
                         }
                     }
