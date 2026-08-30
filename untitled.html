@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shiter.io (지렁이 키우기)</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #1a1a24;
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            touch-action: none;
+            user-select: none;
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #uiLayer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        #scoreDisplay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.5);
+            color: #fff;
+            font-size: 24px;
+            font-weight: bold;
+            border-radius: 30px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.1);
+            pointer-events: auto;
+        }
+
+        #leaderboard {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            color: #fff;
+            padding: 15px;
+            border-radius: 15px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.1);
+            min-width: 180px;
+            pointer-events: auto;
+        }
+
+        #leaderboard h3 {
+            margin: 0 0 10px 0;
+            font-size: 18px;
+            text-align: center;
+            color: #00f2fe;
+        }
+
+        #leaderboardList {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        #minimapContainer {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 150px;
+            height: 150px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.2);
+            overflow: hidden;
+            pointer-events: auto;
+        }
+
+        #minimapCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+            z-index: 10;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #2b2b40 0%, #1a1a24 100%);
+            padding: 40px 60px;
+            border-radius: 20px;
+            text-align: center;
+            color: white;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            border: 1px solid rgba(255,255,255,0.1);
+            max-width: 400px;
+            width: 90%;
+        }
+
+        h1 {
+            margin: 0 0 10px 0;
+            font-size: 48px;
+            background: -webkit-linear-gradient(45deg, #ff00cc, #333399);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(255,0,204,0.3);
+        }
+
+        .customization-box {
+            background: rgba(0,0,0,0.3);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .input-group label {
+            font-size: 14px;
+            color: #aaa;
+            margin-bottom: 5px;
+        }
+
+        .input-group input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #555;
+            background: #222;
+            color: white;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #555;
+            background: #222;
+            color: white;
+            font-size: 16px;
+            box-sizing: border-box;
+            cursor: pointer;
+        }
+
+        .palette-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 100%;
+        }
+
+        .palette {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 6px;
+            max-height: 120px;
+            overflow-y: auto;
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .palette::-webkit-scrollbar {
+            width: 6px;
+        }
+        .palette::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 3px;
+        }
+
+        .color-swatch {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.1s, border-color 0.1s;
+        }
+
+        .color-swatch:hover {
+            transform: scale(1.15);
+        }
+
+        .color-swatch.selected {
+            border-color: white;
+            box-shadow: 0 0 8px rgba(255,255,255,0.8);
+            transform: scale(1.15);
+        }
+
+        button {
+            padding: 15px 40px;
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+            background: linear-gradient(45deg, #00f2fe, #4facfe);
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 5px 15px rgba(0, 242, 254, 0.4);
+            width: 100%;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 242, 254, 0.6);
+        }
+
+        button:active {
+            transform: translateY(2px);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="uiLayer">
+        <div id="scoreDisplay" class="hidden">내 길이: <span id="scoreValue">10</span></div>
+        
+        <div id="leaderboard" class="hidden">
+            <h3>🏆 Top 10</h3>
+            <ul id="leaderboardList">
+                <!-- 리더보드 아이템이 여기에 추가됨 -->
+            </ul>
+        </div>
+
+        <div id="minimapContainer" class="hidden">
+            <canvas id="minimapCanvas"></canvas>
+        </div>
+    </div>
+
+    <!-- 시작 화면 (로비) -->
+    <div id="startMenu" class="modal-overlay">
+        <div class="modal-content">
+            <h1>Shiter.io</h1>
+            
+            <div class="customization-box">
+                <div class="input-group">
+                    <label for="nicknameInput">닉네임</label>
+                    <input type="text" id="nicknameInput" value="Player" maxlength="12" autocomplete="off">
+                </div>
+                
+                <div class="input-group">
+                    <label for="patternSelect">스킨 문양</label>
+                    <select id="patternSelect">
+                        <option value="solid">단색 (메인 색상만)</option>
+                        <option value="stripes">줄무늬</option>
+                        <option value="alternating">교차</option>
+                        <option value="dots">점박이</option>
+                    </select>
+                </div>
+
+                <div class="palette-container">
+                    <div class="input-group">
+                        <label>메인 색상 (50색)</label>
+                        <div id="palette1" class="palette"></div>
+                    </div>
+                    
+                    <div class="input-group" id="color2Group" style="display: none;">
+                        <label>보조 색상</label>
+                        <div id="palette2" class="palette"></div>
+                    </div>
+                </div>
+            </div>
+
+            <button id="startBtn">게임 시작</button>
+        </div>
+    </div>
+
+    <!-- 게임 오버 화면 -->
+    <div id="gameOverMenu" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h1>게임 오버!</h1>
+            <p style="font-size: 18px; margin-bottom: 30px;">최종 길이: <strong id="finalScore" style="color: #00f2fe; font-size: 24px;">0</strong></p>
+            <button id="lobbyBtn">로비로 돌아가기</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const minimapCanvas = document.getElementById('minimapCanvas');
+        const mCtx = minimapCanvas.getContext('2d');
+        
+        let width, height;
+        let gameState = 'START'; // START, PLAYING, GAMEOVER
+        
+        const camera = { x: 0, y: 0 };
+        const mouse = { x: 0, y: 0 };
+        
+        // 월드 크기 대폭 확장
+        const WORLD_RADIUS = 6000; 
+        
+        let player = null;
+        let enemies = [];
+        let foods = [];
+        let frameCount = 0;
+        
+        // 봇 이름 목록
+        const BOT_NAMES = ["Alpha", "Beta", "Slayer", "SnakeKing", "Viper", "Cobra", "Python", "Noodle", "Wormy", "Glitch", "ProGamer", "Noob", "Shadow", "Ghost", "Toxic"];
+
+        // 50가지 프리셋 색상 (Shiter.io 스타일)
+        const PRESET_COLORS = [
+            "#FF0000", "#FF4500", "#FF8C00", "#FFA500", "#FFD700", "#FFFF00", "#ADFF2F", "#7FFF00", "#32CD32", "#00FF00",
+            "#00FA9A", "#00FF7F", "#2E8B57", "#008000", "#008080", "#00FFFF", "#00CED1", "#40E0D0", "#4682B4", "#1E90FF",
+            "#0000FF", "#0000CD", "#00008B", "#8A2BE2", "#9932CC", "#9400D3", "#8B008B", "#FF00FF", "#FF1493", "#FF69B4",
+            "#DC143C", "#A52A2A", "#800000", "#F4A460", "#D2691E", "#B8860B", "#DAA520", "#EEE8AA", "#BDB76B", "#808000",
+            "#556B2F", "#2F4F4F", "#708090", "#778899", "#C0C0C0", "#A9A9A9", "#808080", "#696969", "#000000", "#FFFFFF"
+        ];
+        const PATTERNS = ['solid', 'stripes', 'alternating', 'dots'];
+
+        let selectedColor1 = PRESET_COLORS[19]; // 기본 파란색
+        let selectedColor2 = PRESET_COLORS[3];  // 기본 주황색
+
+        // DOM 요소
+        const startMenu = document.getElementById('startMenu');
+        const gameOverMenu = document.getElementById('gameOverMenu');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const leaderboard = document.getElementById('leaderboard');
+        const minimapContainer = document.getElementById('minimapContainer');
+        
+        const nicknameInput = document.getElementById('nicknameInput');
+        const patternSelect = document.getElementById('patternSelect');
+        const color2Group = document.getElementById('color2Group');
+        const palette1 = document.getElementById('palette1');
+        const palette2 = document.getElementById('palette2');
+
+        // 팔레트 렌더링 초기화
+        function initPalettes() {
+            PRESET_COLORS.forEach(color => {
+                const swatch1 = document.createElement('div');
+                swatch1.className = 'color-swatch';
+                swatch1.style.backgroundColor = color;
+                if (color === selectedColor1) swatch1.classList.add('selected');
+                swatch1.onclick = () => {
+                    document.querySelectorAll('#palette1 .color-swatch').forEach(el => el.classList.remove('selected'));
+                    swatch1.classList.add('selected');
+                    selectedColor1 = color;
+                };
+                palette1.appendChild(swatch1);
+
+                const swatch2 = document.createElement('div');
+                swatch2.className = 'color-swatch';
+                swatch2.style.backgroundColor = color;
+                if (color === selectedColor2) swatch2.classList.add('selected');
+                swatch2.onclick = () => {
+                    document.querySelectorAll('#palette2 .color-swatch').forEach(el => el.classList.remove('selected'));
+                    swatch2.classList.add('selected');
+                    selectedColor2 = color;
+                };
+                palette2.appendChild(swatch2);
+            });
+        }
+        initPalettes();
+
+        // 문양 선택 시 보조 색상 표시/숨김
+        patternSelect.addEventListener('change', (e) => {
+            if (e.target.value === 'solid') {
+                color2Group.style.display = 'none';
+            } else {
+                color2Group.style.display = 'block';
+            }
+        });
+
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        function randomRange(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+        function getRandomColorHex() {
+            const letters = '0123456789ABCDEF';
+            let color = '#';
+            for (let i = 0; i < 6; i++) {
+                color += letters[Math.floor(Math.random() * 16)];
+            }
+            return color;
+        }
+
+        function getDistance(x1, y1, x2, y2) {
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        class Food {
+            constructor(x, y, value, color) {
+                this.x = x;
+                this.y = y;
+                this.value = value; 
+                this.color = color || getRandomColorHex();
+                this.radius = Math.max(3, value * 0.8);
+                this.pulse = Math.random() * Math.PI * 2;
+            }
+
+            draw(ctx) {
+                this.pulse += 0.1;
+                const glow = 1 + Math.sin(this.pulse) * 0.2; 
+                
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius * glow, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.color;
+                ctx.fill();
+                ctx.shadowBlur = 0; 
+            }
+        }
+
+        class Snake {
+            constructor(x, y, isPlayer, name, c1, c2, pattern) {
+                this.x = x;
+                this.y = y;
+                this.isPlayer = isPlayer;
+                this.name = name;
+                
+                this.color1 = c1;
+                this.color2 = c2;
+                this.pattern = pattern || 'solid';
+                
+                this.angle = randomRange(0, Math.PI * 2);
+                this.targetAngle = this.angle;
+                
+                this.baseSpeed = isPlayer ? 4.5 : randomRange(3.5, 5);
+                this.boostSpeed = this.baseSpeed * 2.2;
+                this.speed = this.baseSpeed;
+                this.boosting = false;
+                
+                // 처음엔 아주 작게 시작 (기본 길이와 굵기를 위해 초기 점수 10)
+                this.score = 10;
+                this.history = []; 
+                this.segmentDist = 4; 
+                this.dead = false;
+                
+                this.aiTimer = 0;
+                this.turnSpeed = isPlayer ? 0.15 : 0.08;
+            }
+
+            getRadius() {
+                // 점수가 오를수록 점진적으로 굵어짐
+                return 8 + Math.sqrt(this.score) * 0.5;
+            }
+
+            getTargetLength() {
+                // 점수가 오를수록 길이가 확연히 늘어남
+                return 10 + Math.floor(this.score / 8);
+            }
+
+            update(mouseX, mouseY) {
+                if (this.dead) return;
+
+                if (this.isPlayer) {
+                    this.targetAngle = Math.atan2(mouseY - height / 2, mouseX - width / 2);
+                } else {
+                    this.updateAI();
+                }
+
+                // 점수가 15 이상일 때만 부스트 가능
+                if (this.boosting && this.score > 15) {
+                    this.speed = this.boostSpeed;
+                    if (!this.isPlayer) {
+                        this.score -= 0.1; // 봇만 부스트 시 미세하게 질량 감소, 플레이어는 무제한
+                    }
+                } else {
+                    this.speed = this.baseSpeed;
+                    this.boosting = false; 
+                }
+
+                let da = this.targetAngle - this.angle;
+                while (da > Math.PI) da -= Math.PI * 2;
+                while (da < -Math.PI) da += Math.PI * 2;
+                this.angle += da * this.turnSpeed;
+
+                this.x += Math.cos(this.angle) * this.speed;
+                this.y += Math.sin(this.angle) * this.speed;
+
+                // 맵 경계 충돌 체크 (모든 개체 사망 처리)
+                const distFromCenter = Math.sqrt(this.x * this.x + this.y * this.y);
+                if (distFromCenter > WORLD_RADIUS - this.getRadius()) {
+                    if (this.isPlayer) {
+                        // 무적 처리: 플레이어는 죽지 않고 맵 경계에서 튕겨나가지 않게 위치를 고정합니다.
+                        const angleToCenter = Math.atan2(this.y, this.x);
+                        this.x = Math.cos(angleToCenter) * (WORLD_RADIUS - this.getRadius());
+                        this.y = Math.sin(angleToCenter) * (WORLD_RADIUS - this.getRadius());
+                    } else {
+                        die(this);
+                        return; // 사망 시 이동 중지
+                    }
+                }
+
+                this.history.unshift({ x: this.x, y: this.y });
+                const maxLength = this.getTargetLength() * this.segmentDist;
+                while (this.history.length > maxLength) {
+                    this.history.pop();
+                }
+            }
+
+            updateAI() {
+                this.aiTimer--;
+                if (this.aiTimer <= 0) {
+                    let closestFood = null;
+                    let closestDist = 1000; 
+                    
+                    for (let f of foods) {
+                        const d = getDistance(this.x, this.y, f.x, f.y);
+                        if (d < closestDist) {
+                            closestDist = d;
+                            closestFood = f;
+                        }
+                    }
+
+                    if (closestFood) {
+                        this.targetAngle = Math.atan2(closestFood.y - this.y, closestFood.x - this.x);
+                    } else {
+                        this.targetAngle += randomRange(-Math.PI/2, Math.PI/2);
+                    }
+                    
+                    if (Math.random() < 0.1 && this.score > 50) {
+                        this.boosting = true;
+                        this.aiTimer = 30; 
+                    } else {
+                        this.boosting = false;
+                        this.aiTimer = randomRange(30, 90);
+                    }
+                }
+
+                let avoidX = 0, avoidY = 0;
+                let avoiding = false;
+                
+                const allSnakes = [player, ...enemies].filter(s => s && !s.dead && s !== this);
+                for(let other of allSnakes) {
+                    const d = getDistance(this.x, this.y, other.x, other.y);
+                    if(d < 350) { // 회피 반경 증가
+                        avoidX += this.x - other.x;
+                        avoidY += this.y - other.y;
+                        avoiding = true;
+                    }
+                }
+
+                if (avoiding) {
+                    const avoidAngle = Math.atan2(avoidY, avoidX);
+                    this.targetAngle = avoidAngle; 
+                }
+            }
+
+            draw(ctx) {
+                if (this.dead) return;
+                
+                const rad = this.getRadius();
+                const targetLen = this.getTargetLength();
+
+                for (let i = targetLen - 1; i >= 0; i--) {
+                    let idx = i * this.segmentDist;
+                    if (idx >= this.history.length) idx = this.history.length - 1;
+                    
+                    const pos = this.history[idx];
+                    if (!pos) continue;
+
+                    ctx.beginPath();
+                    ctx.arc(pos.x, pos.y, rad, 0, Math.PI * 2);
+                    
+                    // 스킨 패턴 적용
+                    if (i === 0 || this.pattern === 'solid') {
+                        ctx.fillStyle = this.color1;
+                    } else if (this.pattern === 'stripes') {
+                        // 3칸 단위로 스트라이프
+                        ctx.fillStyle = (Math.floor(i / 3) % 2 === 0) ? this.color1 : this.color2;
+                    } else if (this.pattern === 'alternating') {
+                        // 1칸 단위 교차
+                        ctx.fillStyle = (i % 2 === 0) ? this.color1 : this.color2;
+                    } else if (this.pattern === 'dots') {
+                        ctx.fillStyle = this.color1;
+                    }
+                    
+                    ctx.fill();
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                    ctx.stroke();
+
+                    // 점박이 패턴일 경우 바디 중간에 작은 원 추가
+                    if (this.pattern === 'dots' && i !== 0 && i % 3 === 0) {
+                        ctx.beginPath();
+                        ctx.arc(pos.x, pos.y, rad * 0.4, 0, Math.PI * 2);
+                        ctx.fillStyle = this.color2;
+                        ctx.fill();
+                    }
+                }
+
+                // 눈
+                const eyeOffset = rad * 0.5;
+                const eyeRad = rad * 0.3;
+                const pupilRad = eyeRad * 0.5;
+                
+                const leftEyeX = this.x + Math.cos(this.angle - 0.5) * eyeOffset;
+                const leftEyeY = this.y + Math.sin(this.angle - 0.5) * eyeOffset;
+                const rightEyeX = this.x + Math.cos(this.angle + 0.5) * eyeOffset;
+                const rightEyeY = this.y + Math.sin(this.angle + 0.5) * eyeOffset;
+
+                ctx.fillStyle = 'white';
+                ctx.beginPath(); ctx.arc(leftEyeX, leftEyeY, eyeRad, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(rightEyeX, rightEyeY, eyeRad, 0, Math.PI*2); ctx.fill();
+
+                ctx.fillStyle = 'black';
+                ctx.beginPath(); ctx.arc(leftEyeX + Math.cos(this.angle)*2, leftEyeY + Math.sin(this.angle)*2, pupilRad, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(rightEyeX + Math.cos(this.angle)*2, rightEyeY + Math.sin(this.angle)*2, pupilRad, 0, Math.PI*2); ctx.fill();
+
+                // 이름 표시
+                if (this.name) {
+                    ctx.fillStyle = 'white';
+                    ctx.font = '14px Inter, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(this.name, this.x, this.y - rad - 10);
+                }
+            }
+        }
+
+        function die(snake) {
+            snake.dead = true;
+            
+            // 기존의 먹이 드롭 로직 제거: 점수를 즉시 흡수하므로 시체가 남지 않습니다.
+
+            if (snake.isPlayer) {
+                gameState = 'GAMEOVER';
+                document.getElementById('finalScore').innerText = Math.floor(snake.score);
+                gameOverMenu.classList.remove('hidden');
+                
+                // UI 숨기기
+                scoreDisplay.classList.add('hidden');
+                leaderboard.classList.add('hidden');
+                minimapContainer.classList.add('hidden');
+            }
+        }
+
+        function checkCollisions() {
+            const allSnakes = [player, ...enemies].filter(s => s && !s.dead);
+
+            // 먹이 섭취
+            for (let s of allSnakes) {
+                const sRad = s.getRadius();
+                for (let i = foods.length - 1; i >= 0; i--) {
+                    const f = foods[i];
+                    if (getDistance(s.x, s.y, f.x, f.y) < sRad + f.radius) {
+                        s.score += f.value;
+                        foods.splice(i, 1);
+                    }
+                }
+            }
+
+            // 지렁이 간의 충돌 (머리 -> 몸통)
+            for (let headSnake of allSnakes) {
+                const headRad = headSnake.getRadius();
+                for (let bodySnake of allSnakes) {
+                    if (headSnake === bodySnake) continue; 
+                    
+                    const bodyLen = bodySnake.getTargetLength();
+                    const bodyRad = bodySnake.getRadius();
+
+                    for (let i = 0; i < bodyLen; i++) {
+                        let idx = i * bodySnake.segmentDist;
+                        if (idx >= bodySnake.history.length) break;
+                        
+                        const pos = bodySnake.history[idx];
+                        if (!pos) continue;
+
+                        if (getDistance(headSnake.x, headSnake.y, pos.x, pos.y) < (headRad + bodyRad) * 0.7) { 
+                            if (!headSnake.isPlayer) {
+                                // 무적 처리: 플레이어는 다른 지렁이 몸통에 부딪혀도 죽지 않음
+                                // 적을 죽였을 때 해당 지렁이의 모든 점수를 킬러(bodySnake)가 즉시 흡수
+                                bodySnake.score += headSnake.score;
+                                die(headSnake);
+                            }
+                            break;
+                        }
+                    }
+                    if(headSnake.dead) break;
+                }
+            }
+        }
+
+        function spawnFood(amount) {
+            for(let i=0; i<amount; i++) {
+                const angle = randomRange(0, Math.PI * 2);
+                const r = Math.sqrt(Math.random()) * WORLD_RADIUS; 
+                foods.push(new Food(Math.cos(angle) * r, Math.sin(angle) * r, randomRange(2, 8)));
+            }
+        }
+
+        function initGame() {
+            const nick = nicknameInput.value.trim() || "Player";
+            const pattern = patternSelect.value;
+
+            player = new Snake(0, 0, true, nick, selectedColor1, selectedColor2, pattern);
+            enemies = [];
+            foods = [];
+            
+            // 더 큰 맵을 위해 봇 30마리 스폰
+            for(let i=0; i<30; i++) {
+                spawnBot();
+            }
+
+            spawnFood(1500); 
+            
+            gameState = 'PLAYING';
+            scoreDisplay.classList.remove('hidden');
+            leaderboard.classList.remove('hidden');
+            minimapContainer.classList.remove('hidden');
+            startMenu.classList.add('hidden');
+            gameOverMenu.classList.add('hidden');
+        }
+
+        function spawnBot() {
+            const angle = randomRange(0, Math.PI * 2);
+            const r = randomRange(1000, WORLD_RADIUS - 500);
+            const name = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)] + Math.floor(randomRange(1, 99));
+            
+            const c1 = PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
+            const c2 = PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
+            const pattern = PATTERNS[Math.floor(Math.random() * PATTERNS.length)];
+            
+            let newBot = new Snake(Math.cos(angle) * r, Math.sin(angle) * r, false, name, c1, c2, pattern);
+            newBot.score = randomRange(10, 500); // 봇 크기 다양화 (작은 봇부터 큰 봇까지)
+            enemies.push(newBot);
+        }
+
+        function updateLeaderboard() {
+            const allSnakes = [player, ...enemies].filter(s => s && !s.dead);
+            allSnakes.sort((a, b) => b.score - a.score);
+            
+            const listObj = document.getElementById('leaderboardList');
+            let html = '';
+            
+            for(let i=0; i<Math.min(10, allSnakes.length); i++) {
+                const s = allSnakes[i];
+                const isMe = (s === player);
+                const style = isMe ? 'color: #00f2fe; font-weight: bold; font-size: 16px;' : 'color: #ddd;';
+                html += `<li style="${style}">${i+1}. ${s.name} - ${Math.floor(s.score)}</li>`;
+            }
+            listObj.innerHTML = html;
+        }
+
+        function updateMinimap() {
+            minimapCanvas.width = 150;
+            minimapCanvas.height = 150;
+            mCtx.clearRect(0, 0, 150, 150);
+
+            // 맵 경계 그리기
+            mCtx.beginPath();
+            mCtx.arc(75, 75, 70, 0, Math.PI * 2);
+            mCtx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            mCtx.fill();
+            mCtx.lineWidth = 2;
+            mCtx.strokeStyle = 'rgba(255, 0, 0, 0.4)';
+            mCtx.stroke();
+
+            // 플레이어 그리기
+            if (player && !player.dead) {
+                // 위치 비율 계산
+                const px = (player.x / WORLD_RADIUS) * 70 + 75;
+                const py = (player.y / WORLD_RADIUS) * 70 + 75;
+
+                mCtx.beginPath();
+                mCtx.arc(px, py, 4, 0, Math.PI * 2);
+                mCtx.fillStyle = '#00f2fe';
+                mCtx.shadowBlur = 5;
+                mCtx.shadowColor = '#00f2fe';
+                mCtx.fill();
+                mCtx.shadowBlur = 0;
+            }
+        }
+
+        function drawBackground() {
+            ctx.fillStyle = '#1a1a24';
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.lineWidth = 2;
+            const gridSize = 100;
+
+            const startX = Math.floor((camera.x - width/2) / gridSize) * gridSize;
+            const startY = Math.floor((camera.y - height/2) / gridSize) * gridSize;
+
+            ctx.beginPath();
+            for (let x = startX; x < camera.x + width/2; x += gridSize) {
+                ctx.moveTo(x - camera.x + width/2, 0);
+                ctx.lineTo(x - camera.x + width/2, height);
+            }
+            for (let y = startY; y < camera.y + height/2; y += gridSize) {
+                ctx.moveTo(0, y - camera.y + height/2);
+                ctx.lineTo(width, y - camera.y + height/2);
+            }
+            ctx.stroke();
+
+            // 레드존(경계)
+            ctx.beginPath();
+            ctx.arc(width/2 - camera.x, height/2 - camera.y, WORLD_RADIUS, 0, Math.PI*2);
+            ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+            ctx.lineWidth = 15;
+            ctx.stroke();
+            
+            // 맵 밖은 어둡게
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            ctx.arc(width/2 - camera.x, height/2 - camera.y, WORLD_RADIUS, 0, Math.PI*2);
+            ctx.rect(width, 0, -width, height);
+            ctx.fill('evenodd');
+        }
+
+        function gameLoop() {
+            frameCount++;
+
+            if (gameState === 'PLAYING') {
+                player.boosting = isMouseDown;
+
+                player.update(mouse.x, mouse.y);
+                
+                // 부드러운 카메라 추적
+                camera.x += (player.x - camera.x) * 0.1;
+                camera.y += (player.y - camera.y) * 0.1;
+
+                enemies.forEach(e => e.update(0,0));
+                
+                // 죽은 적 제거 및 리스폰
+                enemies = enemies.filter(e => !e.dead);
+                while (enemies.length < 30) {
+                    spawnBot();
+                }
+
+                // 먹이 보충
+                if (foods.length < 1200) {
+                    spawnFood(100);
+                }
+
+                checkCollisions();
+
+                document.getElementById('scoreValue').innerText = Math.floor(player.score);
+
+                // 주기적 UI 업데이트 (성능 최적화)
+                if (frameCount % 10 === 0) {
+                    updateLeaderboard();
+                    updateMinimap();
+                }
+            }
+
+            ctx.clearRect(0, 0, width, height);
+            drawBackground();
+
+            ctx.save();
+            ctx.translate(width / 2 - camera.x, height / 2 - camera.y);
+
+            // 화면에 보이는 요소만 렌더링
+            const viewLeft = camera.x - width/2 - 100;
+            const viewRight = camera.x + width/2 + 100;
+            const viewTop = camera.y - height/2 - 100;
+            const viewBottom = camera.y + height/2 + 100;
+
+            for (let f of foods) {
+                if(f.x > viewLeft && f.x < viewRight && f.y > viewTop && f.y < viewBottom) {
+                    f.draw(ctx);
+                }
+            }
+
+            for (let e of enemies) {
+                 e.draw(ctx);
+            }
+            
+            if(player && !player.dead) player.draw(ctx);
+
+            ctx.restore();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        let isMouseDown = false;
+
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        });
+
+        window.addEventListener('mousedown', (e) => {
+            if(e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') {
+                isMouseDown = true;
+            }
+        });
+        window.addEventListener('mouseup', () => isMouseDown = false);
+        
+        window.addEventListener('touchstart', (e) => {
+             if(e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') {
+                isMouseDown = true;
+                mouse.x = e.touches[0].clientX;
+                mouse.y = e.touches[0].clientY;
+             }
+        }, {passive: false});
+        
+        window.addEventListener('touchmove', (e) => {
+            mouse.x = e.touches[0].clientX;
+            mouse.y = e.touches[0].clientY;
+        }, {passive: false});
+
+        window.addEventListener('touchend', () => isMouseDown = false);
+
+        window.addEventListener('keydown', (e) => {
+            if(e.code === 'Space' && gameState === 'PLAYING') {
+                isMouseDown = true;
+                e.preventDefault(); // 스페이스바 스크롤 방지
+            }
+        });
+        window.addEventListener('keyup', (e) => {
+            if(e.code === 'Space') isMouseDown = false;
+        });
+
+        document.getElementById('startBtn').addEventListener('click', initGame);
+        
+        document.getElementById('lobbyBtn').addEventListener('click', () => {
+            gameState = 'START';
+            gameOverMenu.classList.add('hidden');
+            startMenu.classList.remove('hidden');
+        });
+
+        requestAnimationFrame(gameLoop);
+
+    </script>
+</body>
+</html>
